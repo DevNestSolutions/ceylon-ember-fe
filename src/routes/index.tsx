@@ -7,6 +7,7 @@ import { Particles } from "@/components/velour/Particles";
 import { Spotlight } from "@/components/velour/Spotlight";
 import { TiltCard } from "@/components/velour/TiltCard";
 import { Loader } from "@/components/velour/Loader";
+import { toast } from "sonner";
 
 import ramen from "@/assets/dish-ramen.jpg";
 import steak from "@/assets/dish-steak.jpg";
@@ -76,9 +77,33 @@ function VelourHome() {
   const current = HERO_DISHES.find((d) => d.id === active)!;
 
   // ✅ Auto-rotating dishes state
-  const [dishes] = useState<Dish[]>(INITIAL_DISHES);
+  const [dishes, setDishes] = useState<Dish[]>(INITIAL_DISHES);
   const [offset, setOffset] = useState(0);
   const VISIBLE = 3;
+
+  // Reservation states
+  const [resName, setResName] = useState("");
+  const [resEmail, setResEmail] = useState("");
+  const [resDate, setResDate] = useState("");
+  const [resGuests, setResGuests] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchDishes = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/dishes");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setDishes(data);
+          }
+        }
+      } catch (error) {
+        console.warn("Backend offline, falling back to mock dishes:", error);
+      }
+    };
+    fetchDishes();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -86,6 +111,46 @@ function VelourHome() {
     }, 2500);
     return () => clearInterval(timer);
   }, [dishes.length]);
+
+  const handleReserve = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resName || !resEmail || !resDate || !resGuests) {
+      toast.error("Please fill in all reservation fields.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("http://localhost:5000/api/reservations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: resName,
+          email: resEmail,
+          date: resDate,
+          guests: resGuests,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Reservation request sent successfully!");
+        setResName("");
+        setResEmail("");
+        setResDate("");
+        setResGuests("");
+      } else {
+        const errData = await response.json();
+        toast.error(errData.error || "Failed to make a reservation. Please try again.");
+      }
+    } catch (error) {
+      console.error("Reservation request error:", error);
+      toast.error("Unable to connect to the reservation system. Please check connection.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const visibleDishes = Array.from({ length: VISIBLE }, (_, i) =>
     dishes[(offset + i) % dishes.length]
@@ -416,18 +481,47 @@ function VelourHome() {
               <div>
                 <SectionHeader eyebrow="05 — Reserve" title="Book the Table" sub="Twelve seats. One service per night. Reserved up to 90 days in advance." align="left" />
               </div>
-              <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
-                <Field label="Name" placeholder="Your full name" />
-                <Field label="Email" placeholder="you@domain.com" type="email" />
+              <form onSubmit={handleReserve} className="space-y-4">
+                <Field
+                  label="Name"
+                  placeholder="Your full name"
+                  required
+                  value={resName}
+                  onChange={(e) => setResName(e.target.value)}
+                />
+                <Field
+                  label="Email"
+                  placeholder="you@domain.com"
+                  type="email"
+                  required
+                  value={resEmail}
+                  onChange={(e) => setResEmail(e.target.value)}
+                />
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Date" type="date" />
-                  <Field label="Guests" placeholder="2" type="number" />
+                  <Field
+                    label="Date"
+                    type="date"
+                    required
+                    value={resDate}
+                    onChange={(e) => setResDate(e.target.value)}
+                  />
+                  <Field
+                    label="Guests"
+                    placeholder="2"
+                    type="number"
+                    required
+                    value={resGuests}
+                    onChange={(e) => setResGuests(e.target.value)}
+                  />
                 </div>
                 <button
                   type="submit"
-                  className="group relative w-full overflow-hidden rounded-full bg-gradient-to-br from-[var(--gold)] to-[var(--ember)] px-6 py-4 text-sm font-medium text-primary-foreground shadow-[0_18px_60px_-12px_oklch(0.82_0.16_78_/_0.55)] transition-transform hover:scale-[1.02]"
+                  disabled={isSubmitting}
+                  className="group relative w-full overflow-hidden rounded-full bg-gradient-to-br from-[var(--gold)] to-[var(--ember)] px-6 py-4 text-sm font-medium text-primary-foreground shadow-[0_18px_60px_-12px_oklch(0.82_0.16_78_/_0.55)] transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <span className="relative z-10">Confirm Reservation</span>
+                  <span className="relative z-10">
+                    {isSubmitting ? "Sending Request..." : "Confirm Reservation"}
+                  </span>
                   <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                 </button>
               </form>
