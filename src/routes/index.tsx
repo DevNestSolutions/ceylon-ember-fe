@@ -1,0 +1,496 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { motion, useScroll, useTransform, useMotionValueEvent, AnimatePresence } from "framer-motion";
+import { useRef, useState, useEffect } from "react"; // ✅ useEffect import කළා
+import { Nav } from "@/components/velour/Nav";
+import { Hero3D, type DishId } from "@/components/velour/Hero3D";
+import { Particles } from "@/components/velour/Particles";
+import { Spotlight } from "@/components/velour/Spotlight";
+import { TiltCard } from "@/components/velour/TiltCard";
+import { Loader } from "@/components/velour/Loader";
+
+import ramen from "@/assets/dish-ramen.jpg";
+import steak from "@/assets/dish-steak.jpg";
+import scallops from "@/assets/dish-scallops.jpg";
+import dessert from "@/assets/dish-dessert.jpg";
+import chef from "@/assets/chef.jpg";
+
+export const Route = createFileRoute("/")({
+  component: VelourHome,
+  head: () => ({
+    meta: [
+      { title: "The Ceylon Ember Restaurant — Luxury Dining Experience" },
+      { name: "description", content: "The Ceylon Ember: a futuristic fine dining experience. Cinematic plates, master chefs, and a reservation worth the wait." },
+      { property: "og:title", content: "The Ceylon Ember — Taste the future of fine dining" },
+      { property: "og:description", content: "An immersive luxury restaurant experience." },
+    ],
+  }),
+});
+
+type Dish = {
+  id: number;
+  name: string;
+  price: string;
+  tag: string;
+  img: string;
+  desc: string;
+};
+
+const INITIAL_DISHES: Dish[] = [
+  { id: 1, name: "Wagyu Reserve", price: "$148", tag: "Signature", img: steak, desc: "A5 wagyu, smoked bone marrow, charred shallot jus." },
+  { id: 2, name: "Hokkaido Scallops", price: "$84", tag: "Ocean", img: scallops, desc: "Torched scallops, brown butter, gold leaf." },
+  { id: 3, name: "The Ceylon Ember Noir", price: "$42", tag: "Dessert", img: dessert, desc: "Single-origin chocolate, raspberry coulis, gilded leaf." },
+  { id: 4, name: "Spiced ramen", price: "$96", tag: "Chef's Special", img: ramen, desc: "Slow-roasted lamb, saffron reduction, herb crust." }, // ✅ id: 4 — ඔයාගේ image එක දෙන්න
+];
+
+const chefs = [
+  { name: "Aurélien Voss", role: "Executive Chef", years: "18 yrs" },
+  { name: "Mira Tanaka", role: "Pastry Director", years: "12 yrs" },
+  { name: "Idris Kahn", role: "Sommelier", years: "15 yrs" },
+];
+
+const reviews = [
+  { name: "Lena R.", role: "Vogue", quote: "A theatrical dining experience that feels less like a meal and more like a private opera." },
+  { name: "Marco V.", role: "Eater", quote: "The Ceylon Ember redefines luxury — every plate arrives like a secret being whispered." },
+  { name: "Sasha K.", role: "Condé Nast", quote: "Cinematic, precise, unforgettable. A new gold standard for fine dining." },
+];
+
+const HERO_DISHES: { id: DishId; label: string; tag: string; price: string }[] = [
+  { id: "burger", label: "Truffle Wagyu Burger", tag: "Signature", price: "$68" },
+  { id: "steak", label: "A5 Wagyu Reserve", tag: "Fire", price: "$148" },
+  { id: "plate", label: "Hokkaido Tasting", tag: "Ocean", price: "$84" },
+];
+
+function VelourHome() {
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress: heroProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+  const heroTextY = useTransform(heroProgress, [0, 1], [0, 120]);
+  const heroTextOpacity = useTransform(heroProgress, [0, 0.7], [1, 0]);
+  const emberY = useTransform(heroProgress, [0, 1], ["0%", "30%"]);
+
+  const { scrollYProgress: pageProgress } = useScroll();
+  const canvasOpacity = useTransform(pageProgress, [0, 0.08, 0.12, 1], [1, 1, 0.28, 0.22]);
+  const progressRef = useRef(0);
+  useMotionValueEvent(pageProgress, "change", (v) => { progressRef.current = v; });
+
+  const [active, setActive] = useState<DishId>("burger");
+  const current = HERO_DISHES.find((d) => d.id === active)!;
+
+  // ✅ Auto-rotating dishes state
+  const [dishes] = useState<Dish[]>(INITIAL_DISHES);
+  const [offset, setOffset] = useState(0);
+  const VISIBLE = 3;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setOffset((prev) => (prev + 1) % dishes.length);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [dishes.length]);
+
+  const visibleDishes = Array.from({ length: VISIBLE }, (_, i) =>
+    dishes[(offset + i) % dishes.length]
+  );
+
+  return (
+    <main className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
+      <Loader />
+      <Spotlight />
+      <Nav />
+
+      {/* Persistent cinematic 3D backdrop */}
+      <motion.div
+        style={{ opacity: canvasOpacity }}
+        className="pointer-events-none fixed inset-0 z-0"
+      >
+        <Hero3D active={active} progressRef={progressRef} />
+      </motion.div>
+
+      {/* HERO */}
+      <section id="hero" ref={heroRef} className="relative min-h-screen overflow-hidden">
+        <motion.div style={{ y: emberY }} className="absolute inset-0 -z-10">
+          <div className="absolute inset-0" style={{ background: "var(--gradient-ember)" }} />
+        </motion.div>
+        <Particles count={36} />
+
+        <motion.div style={{ y: heroTextY, opacity: heroTextOpacity }} className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center">
+
+          <h1 className="mt-18 font-display text-[clamp(3rem,9vw,9rem)] font-light leading-[0.95]">
+            <motion.span
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.7, duration: 1, ease: [0.22, 1, 0.36, 1] }}
+              className="block"
+            >
+              Luxury Dining
+            </motion.span>
+            <motion.span
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.85, duration: 1, ease: [0.22, 1, 0.36, 1] }}
+              className="block italic text-gradient-gold"
+            >
+              Experience
+            </motion.span>
+          </h1>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 2.1, duration: 0.8 }}
+            className="mt-6 max-w-md text-base text-muted-foreground"
+          >
+            Taste the future of fine dining — a cinematic eight-course journey through fire, light, and the world's rarest ingredients.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.25, duration: 0.8 }}
+            className="mt-10 flex flex-col gap-3 sm:flex-row"
+          >
+            <a
+              href="#reserve"
+              className="group relative overflow-hidden rounded-full bg-gradient-to-br from-[var(--gold)] to-[var(--ember)] px-8 py-4 text-sm font-medium text-primary-foreground shadow-[0_18px_60px_-12px_oklch(0.82_0.16_78_/_0.55)] transition-transform hover:scale-[1.04]"
+            >
+              <span className="relative z-10">Reserve Table</span>
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            </a>
+            <a
+              href="#dishes"
+              className="glass-strong rounded-full px-8 py-4 text-sm font-medium transition-all hover:border-[var(--gold)]/40 hover:shadow-[0_0_40px_-10px_oklch(0.82_0.16_78_/_0.5)]"
+            >
+              Explore Menu →
+            </a>
+          </motion.div>
+
+          {/* Active dish label */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.4, duration: 0.8 }}
+            className="mt-12 h-16"
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={current.id}
+                initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -14, filter: "blur(8px)" }}
+                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                className="flex items-center justify-center gap-4 text-sm"
+              >
+                <span className="text-[10px] uppercase tracking-[0.4em] text-[var(--gold)]">{current.tag}</span>
+                <span className="h-px w-8 bg-border" />
+                <span className="font-display text-xl">{current.label}</span>
+                <span className="h-px w-8 bg-border" />
+                <span className="text-muted-foreground">{current.price}</span>
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Dish switcher */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.5, duration: 0.8 }}
+            className="absolute bottom-[-30px] left-1/2 -translate-x-1/2"
+          >
+            <div className="glass-strong relative flex items-center gap-1 rounded-full p-1.5">
+              {HERO_DISHES.map((d) => {
+                const isActive = active === d.id;
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => setActive(d.id)}
+                    className="relative rounded-full px-5 py-2.5 text-xs uppercase tracking-[0.25em] transition-colors"
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="dish-pill"
+                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                        className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--gold)] to-[var(--ember)] shadow-[0_8px_30px_-8px_oklch(0.82_0.16_78_/_0.7)]"
+                      />
+                    )}
+                    <span className={`relative ${isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                      {d.id}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-3 text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground">
+              Move cursor to sway · Scroll for cinema
+            </div>
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* DISHES */}
+      <section id="dishes" className="relative z-10 py-32">
+        <div className="mx-auto max-w-7xl px-6">
+          <SectionHeader
+            eyebrow="01 — The Menu"
+            title="Popular Dishes"
+            sub="Each plate is staged like a scene — composed, lit, and served at the moment of perfection."
+          />
+
+          <div className="mt-20 grid gap-6 md:grid-cols-3 overflow-hidden">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {visibleDishes.map((d) => (
+                <motion.div
+                  key={d.id}
+                  layout
+                  initial={{ opacity: 0, x: 120, scale: 0.92, filter: "blur(8px)" }}
+                  animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, x: -120, scale: 0.92, filter: "blur(8px)" }}
+                  transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <TiltCard className="glass relative overflow-hidden rounded-3xl">
+                    <div className="relative aspect-[4/5] overflow-hidden">
+                      <img
+                        src={d.img}
+                        alt={d.name}
+                        loading="lazy"
+                        width={768}
+                        height={960}
+                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+                      <span className="glass absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.3em]">{d.tag}</span>
+                      <span className="absolute right-4 top-4 rounded-full bg-gradient-to-br from-[var(--gold)] to-[var(--ember)] px-3 py-1 text-xs font-semibold text-primary-foreground">{d.price}</span>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="font-display text-2xl">{d.name}</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">{d.desc}</p>
+                      <div className="mt-5 flex items-center justify-between">
+                        <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">View dish</span>
+                        <span className="grid h-9 w-9 place-items-center rounded-full border border-border transition-all group-hover:border-[var(--gold)] group-hover:bg-[var(--gold)]/10">→</span>
+                      </div>
+                    </div>
+                  </TiltCard>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          <div className="mt-8 flex justify-center gap-2">
+            {dishes.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setOffset(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${visibleDishes.some((d) => d.id === dishes[i].id)
+                  ? "w-6 bg-[var(--gold)]"
+                  : "w-1.5 bg-border"
+                  }`}
+              />
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* CHEF SPECIALS / CHEFS */}
+      <section id="chefs" className="relative z-10 py-32">
+        <div className="absolute inset-x-0 top-0 -z-10 h-full" style={{ background: "radial-gradient(800px 400px at 80% 20%, oklch(0.68 0.20 45 / 0.18), transparent 60%)" }} />
+        <div className="mx-auto grid max-w-7xl gap-16 px-6 lg:grid-cols-2 lg:items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1 }}
+            className="relative"
+          >
+            <div className="relative overflow-hidden rounded-[2rem] glass-strong">
+              <img src={chef} alt="Executive chef plating dish" loading="lazy" width={1024} height={1280} className="h-[600px] w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-background/80 via-transparent to-transparent" />
+              <div className="absolute bottom-6 left-6 right-6 glass rounded-2xl p-5">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-[var(--gold)]">Tonight's Tasting</div>
+                <div className="mt-1 font-display text-xl">Eight courses · Two hours · One table at a time</div>
+              </div>
+            </div>
+            <span className="absolute -right-6 -top-6 grid h-24 w-24 place-items-center rounded-full border border-[var(--gold)]/40 bg-background/60 text-center font-display text-xs uppercase tracking-[0.3em] animate-spin-slow">
+              <span>The Ceylon Ember · Chefs ·</span>
+            </span>
+          </motion.div>
+
+          <div>
+            <SectionHeader eyebrow="02 — The Studio" title="Chef Specials" sub="A trio of artisans choreographing every service like a private performance." align="left" />
+            <div className="mt-10 space-y-3">
+              {chefs.map((c, i) => (
+                <motion.div
+                  key={c.name}
+                  initial={{ opacity: 0, x: 40 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: i * 0.1 }}
+                  className="group glass flex items-center justify-between rounded-2xl p-5 transition-all hover:border-[var(--gold)]/40 hover:bg-white/[0.06]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-[var(--gold)]/30 to-[var(--ember)]/30 font-display text-lg">
+                      {c.name[0]}
+                    </div>
+                    <div>
+                      <div className="font-display text-xl">{c.name}</div>
+                      <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{c.role}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Experience</div>
+                    <div className="font-display text-lg text-gradient-gold">{c.years}</div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ABOUT */}
+      <section id="about" className="relative z-10 py-32">
+        <div className="mx-auto max-w-5xl px-6 text-center">
+          <SectionHeader eyebrow="03 — The House" title="About The Ceylon Ember" sub="" />
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1 }}
+            className="mx-auto mt-10 max-w-3xl font-display text-[clamp(1.5rem,3vw,2.5rem)] font-light leading-tight"
+          >
+            A restaurant built like a film set — twelve seats, one open kitchen, and a menu that{" "}
+            <span className="italic text-gradient-gold">rewrites itself</span> every full moon.
+          </motion.p>
+
+          <div className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-3xl glass md:grid-cols-4">
+            {[
+              ["12", "Seats per night"],
+              ["8", "Course tasting"],
+              ["3★", "Michelin"],
+              ["2025", "Established"],
+            ].map(([n, l]) => (
+              <div key={l} className="bg-background/40 p-8">
+                <div className="font-display text-4xl text-gradient-gold">{n}</div>
+                <div className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* REVIEWS */}
+      <section id="reviews" className="relative z-10 py-32">
+        <div className="mx-auto max-w-7xl px-6">
+          <SectionHeader eyebrow="04 — Praise" title="Customer Reviews" sub="What the critics whisper after the last course." />
+          <div className="mt-16 grid gap-6 md:grid-cols-3">
+            {reviews.map((r, i) => (
+              <motion.div
+                key={r.name}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.7, delay: i * 0.1 }}
+              >
+                <TiltCard className="glass relative h-full rounded-3xl p-8">
+                  <div className="mb-4 flex gap-1 text-[var(--gold)]">{"★★★★★"}</div>
+                  <p className="font-display text-xl leading-relaxed">"{r.quote}"</p>
+                  <div className="mt-8 flex items-center justify-between border-t border-border pt-5">
+                    <div>
+                      <div className="font-medium">{r.name}</div>
+                      <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{r.role}</div>
+                    </div>
+                    <span className="font-display italic text-muted-foreground">"</span>
+                  </div>
+                </TiltCard>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* RESERVE */}
+      <section id="reserve" className="relative z-10 py-32">
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="glass-strong relative overflow-hidden rounded-[2.5rem] p-10 md:p-16">
+            <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-gradient-to-br from-[var(--gold)]/30 to-[var(--ember)]/20 blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-[var(--ember)]/20 blur-3xl" />
+            <div className="relative grid gap-12 md:grid-cols-2 md:items-center">
+              <div>
+                <SectionHeader eyebrow="05 — Reserve" title="Book the Table" sub="Twelve seats. One service per night. Reserved up to 90 days in advance." align="left" />
+              </div>
+              <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+                <Field label="Name" placeholder="Your full name" />
+                <Field label="Email" placeholder="you@domain.com" type="email" />
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Date" type="date" />
+                  <Field label="Guests" placeholder="2" type="number" />
+                </div>
+                <button
+                  type="submit"
+                  className="group relative w-full overflow-hidden rounded-full bg-gradient-to-br from-[var(--gold)] to-[var(--ember)] px-6 py-4 text-sm font-medium text-primary-foreground shadow-[0_18px_60px_-12px_oklch(0.82_0.16_78_/_0.55)] transition-transform hover:scale-[1.02]"
+                >
+                  <span className="relative z-10">Confirm Reservation</span>
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="relative z-10 border-t border-border py-16">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 md:grid-cols-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[var(--gold)] to-[var(--ember)] font-bold text-primary-foreground">Q</span>
+              <span className="font-display text-xl">The Ceylon Ember</span>
+            </div>
+            <p className="mt-4 max-w-xs text-sm text-muted-foreground">A futuristic fine dining experience. By reservation only.</p>
+          </div>
+          <FooterCol title="Visit" items={["88 Aurum Lane", "Sri Lanka, NY", "+1 (212) 555-0188"]} />
+          <FooterCol title="Hours" items={["Wed – Sun", "Seating · 7:30 PM", "Closed Mon – Tue"]} />
+          <FooterCol title="Follow" items={["Instagram", "Journal", "Press"]} />
+        </div>
+        <div className="mx-auto mt-12 flex max-w-7xl flex-col items-center justify-between gap-4 border-t border-border px-6 pt-8 text-xs text-muted-foreground md:flex-row">
+          <span>© 2025 The Ceylon Ember Restaurant. All rights reserved.</span>
+          <span className="tracking-[0.4em]">CRAFTED · WITH · FIRE</span>
+        </div>
+      </footer>
+    </main>
+  );
+}
+
+function SectionHeader({
+  eyebrow, title, sub, align = "center",
+}: { eyebrow: string; title: string; sub?: string; align?: "center" | "left" }) {
+  const a = align === "center" ? "text-center mx-auto" : "text-left";
+  return (
+    <div className={`max-w-2xl ${a}`}>
+      <div className="text-[10px] uppercase tracking-[0.5em] text-[var(--gold)]">{eyebrow}</div>
+      <h2 className="mt-4 font-display text-[clamp(2.25rem,5vw,4.5rem)] font-light leading-[1]">{title}</h2>
+      {sub && <p className="mt-5 text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}
+
+function Field({ label, ...rest }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{label}</span>
+      <input
+        {...rest}
+        className="glass w-full rounded-2xl bg-transparent px-5 py-3.5 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-[var(--gold)]/60 focus:shadow-[0_0_30px_-10px_oklch(0.82_0.16_78_/_0.55)]"
+      />
+    </label>
+  );
+}
+
+function FooterCol({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-[0.4em] text-[var(--gold)]">{title}</div>
+      <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+        {items.map((i) => <li key={i} className="transition-colors hover:text-foreground">{i}</li>)}
+      </ul>
+    </div>
+  );
+}
